@@ -1,4 +1,4 @@
-import { chromium, Page } from "playwright";
+import { BrowserType, Page } from "playwright";
 import { path } from "zx";
 
 import { min } from "./utils";
@@ -46,41 +46,48 @@ async function login(page: Page, params: LoginParams) {
 export const BaseLibraryUrl = `https://www.bandlab.com/library`;
 
 export interface UploadTracksParams extends LoginParams {
-  name: string;
+  browserType: BrowserType;
   libraryPath?: string;
 }
 
-export async function uploadTracks(
-  files: string[],
-  { libraryPath = "", name, ...loginParams }: UploadTracksParams
+export interface Project {
+  name: string;
+  files: string[];
+}
+
+export async function uploadProjects(
+  projects: Project[],
+  { browserType, libraryPath = "", ...loginParams }: UploadTracksParams
 ) {
-  const browser = await chromium.launch({ headless: false });
+  const browser = await browserType.launch({ headless: false });
   const context = await browser.newContext();
   const page = await context.newPage();
 
   const libraryUrl = path.join(BaseLibraryUrl, libraryPath);
   await page.goto(libraryUrl);
-  await Promise.race([
-    page.waitForNavigation({ url: libraryUrl }),
-    login(page, loginParams),
-  ]);
+  await login(page, loginParams);
+  await page.waitForNavigation({ url: libraryUrl });
 
-  await page.locator('a:has-text("New")').click();
-  const [fileChooser] = await Promise.all([
-    page.waitForEvent("filechooser"),
-    page.locator("text=Import Audio/MIDI").click(),
-  ]);
-  await fileChooser.setFiles(files);
+  for (const { name, files } of projects) {
+    await page.goto(libraryUrl);
 
-  await Promise.all(
-    files.map((file) =>
-      page.locator(`'${path.basename(file)}'`).waitFor({ timeout: min(5) })
-    )
-  );
+    await page.locator('a:has-text("New")').click();
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent("filechooser"),
+      page.locator("text=Import Audio/MIDI").click(),
+    ]);
+    await fileChooser.setFiles(files);
 
-  await page.locator('[placeholder="New Project"]').fill(name);
-  await page.locator('button:has-text("Save")').click();
-  await page.locator("text=Revision saved").waitFor({ timeout: min(5) });
+    await Promise.all(
+      files.map((file) =>
+        page.locator(`'${path.basename(file)}'`).waitFor({ timeout: min(5) })
+      )
+    );
 
-  return page;
+    await page.locator('[placeholder="New Project"]').fill(name);
+    await page.locator('button:has-text("Save")').click();
+    await page.locator("text=Revision saved").waitFor({ timeout: min(5) });
+  }
+
+  await browser.close();
 }

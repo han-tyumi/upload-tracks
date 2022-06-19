@@ -1,11 +1,12 @@
 import "dotenv/config";
 
 import { keyboard } from "@nut-tree/nut-js";
+import { webkit } from "playwright";
 import yargs, { Options } from "yargs";
 import { $, fs, path } from "zx";
 
 import { exportTracks } from "./export";
-import { Providers, uploadTracks } from "./upload";
+import { Project, Providers, uploadProjects } from "./upload";
 import { log } from "./utils";
 
 $.verbose = false;
@@ -58,22 +59,34 @@ async function main() {
           exports[name] = await exportTracks(document);
         }
 
-        for (const [name, directory] of Object.entries(exports)) {
-          const files = (await fs.readdir(directory)).map((file) =>
-            path.join(directory, file)
-          );
-          await uploadTracks(files, {
-            provider,
-            username,
-            password,
-            name,
-            libraryPath,
-          });
-          await log(
-            `removing '${directory}'`,
-            fs.rm(directory, { recursive: true })
-          );
-        }
+        const projects = await Promise.all(
+          Object.entries(exports).map(
+            async ([name, directory]) =>
+              ({
+                name,
+                files: (
+                  await fs.readdir(directory)
+                ).map((file) => path.join(directory, file)),
+              } as Project)
+          )
+        );
+
+        await uploadProjects(projects, {
+          browserType: webkit,
+          provider,
+          username,
+          password,
+          libraryPath,
+        });
+
+        await Promise.all(
+          Object.values(exports).map((directory) =>
+            log(
+              `removing '${directory}'`,
+              fs.rm(directory, { recursive: true })
+            )
+          )
+        );
       }
     )
 
@@ -108,15 +121,13 @@ async function main() {
           path.join(directory, file)
         );
 
-        const page = await uploadTracks(files, {
+        await uploadProjects([{ name, files }], {
+          browserType: webkit,
           provider,
           username,
           password,
-          name,
           libraryPath,
         });
-
-        await page.context().browser()?.close();
       }
     )
 
