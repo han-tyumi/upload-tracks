@@ -13,7 +13,7 @@ export async function exportTracks(file: string) {
   try {
     await log(`opening '${file}' in logic`, async () => {
       await $`open ${file} -a 'Logic Pro X.app'`;
-      await sleep(sec(3));
+      await sleep(sec(5));
     });
 
     await log(`selecting '${dir}'`, async () => {
@@ -50,6 +50,12 @@ export async function exportTracks(file: string) {
         await sleep(sec(1));
       }
       await watcher.close();
+    });
+
+    await log("closing project", async () => {
+      await tap(Key.LeftSuper, Key.W);
+      await sleep(sec(0.5));
+      await tap(Key.Enter);
     });
   } catch (error) {
     await log(`removing '${dir}'`, fs.rm(dir, { recursive: true }));
