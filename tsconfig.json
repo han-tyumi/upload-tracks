@@ -1,3 +1,4 @@
 {
-  "extends": "@tsconfig/node18/tsconfig.json"
+  "extends": "@tsconfig/node18-strictest-esm/tsconfig.json",
+  "exclude": ["xo.config.cjs"]
 }

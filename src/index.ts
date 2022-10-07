@@ -1,137 +1,170 @@
-import "dotenv/config";
+import 'dotenv/config.js' // eslint-disable-line import/no-unassigned-import
 
-import { keyboard } from "@nut-tree/nut-js";
-import { webkit } from "playwright";
-import yargs, { Options } from "yargs";
-import { $, fs, path } from "zx";
+import process from 'node:process'
+import {keyboard} from '@nut-tree/nut-js'
+import {toArray} from 'modern-async'
+import {webkit} from 'playwright'
+import type {Options} from 'yargs'
+import yargs from 'yargs'
+import {$, fs} from 'zx'
 
-import { exportTracks } from "./export";
-import { Project, Providers, uploadProjects } from "./upload";
-import { log } from "./utils";
+import {uploadToBandLab} from './bandlab.js'
+import {exportDocuments, exportCache, exportTracks} from './export.js'
+import {uploadToSoundtrap} from './soundtrap.js'
+import {logAction} from './utils.js'
 
-$.verbose = false;
+$.verbose = false
 
-keyboard.config.autoDelayMs = 50;
+keyboard.config.autoDelayMs = 100
 
-const options = <T extends Record<string, Options>>(options: T) => options;
+const options = <T extends Record<string, Options>>(options: T) => options
 
 const loginOptions = options({
-  provider: {
-    alias: ["P"],
-    choices: Providers,
-  },
   username: {
-    alias: ["u", "email", "e"],
-    type: "string",
+    alias: ['u', 'email', 'e'],
+    type: 'string',
     demandOption: true,
   },
   password: {
-    alias: ["p"],
-    type: "string",
+    alias: ['p'],
+    type: 'string',
     demandOption: true,
   },
-  libraryPath: {
-    alias: ["library", "l"],
-    type: "string",
-  },
-});
+})
 
-const documentsPositional = (yargs: yargs.Argv<{}>) =>
-  yargs.positional("documents", {
-    type: "string",
-    array: true,
-    demandOption: true,
-  });
+await yargs(process.argv.slice(2))
+  .env('UT')
 
-async function main() {
-  await yargs(process.argv.slice(2))
-    .env()
-
-    .command(
-      "* <documents...>",
-      "export and upload logic documents' tracks to BandLab",
-      (yargs) => documentsPositional(yargs).options(loginOptions),
-      async ({ documents, provider, username, password, libraryPath }) => {
-        const exports: Record<string, string> = {};
-
-        for (const document of documents) {
-          const { name } = path.parse(document);
-          exports[name] = await exportTracks(document);
-        }
-
-        const projects = await Promise.all(
-          Object.entries(exports).map(
-            async ([name, directory]) =>
-              ({
-                name,
-                files: (
-                  await fs.readdir(directory)
-                ).map((file) => path.join(directory, file)),
-              } as Project)
-          )
-        );
-
-        await uploadProjects(projects, {
-          browserType: webkit,
-          provider,
-          username,
-          password,
-          libraryPath,
-        });
-
-        await Promise.all(
-          Object.values(exports).map((directory) =>
-            log(
-              `removing '${directory}'`,
-              fs.rm(directory, { recursive: true })
-            )
-          )
-        );
-      }
-    )
-
-    .command(
-      "export <documents...>",
-      "export the tracks from a logic document",
-      documentsPositional,
-      async ({ documents }) => {
-        for (const document of documents) {
-          await exportTracks(document);
-        }
-      }
-    )
-
-    .command(
-      "upload <name> <directory>",
-      "upload a directory of wav files to BandLab",
-      (yargs) =>
-        yargs
-          .positional("name", { type: "string", demandOption: true })
-          .positional("directory", { type: "string", demandOption: true })
-          .options(loginOptions),
-      async ({
-        name,
-        directory,
-        provider,
+  .command(
+    'bandlab <documents...>',
+    "export and upload Logic Pro documents' tracks to BandLab",
+    (yargs) =>
+      yargs
+        .positional('documents', {
+          type: 'string',
+          array: true,
+          demandOption: true,
+        })
+        .options({
+          ...loginOptions,
+          libraryPath: {
+            alias: ['library', 'l'],
+            type: 'string',
+          },
+        }),
+    async ({documents, username, password, libraryPath}) => {
+      const projects = await exportDocuments(documents)
+      await uploadToBandLab(projects, {
+        browserType: webkit,
         username,
         password,
         libraryPath,
-      }) => {
-        const files = (await fs.readdir(directory)).map((file) =>
-          path.join(directory, file)
-        );
+      })
+    },
+  )
 
-        await uploadProjects([{ name, files }], {
-          browserType: webkit,
-          provider,
-          username,
-          password,
-          libraryPath,
-        });
-      }
-    )
+  .command(
+    'soundtrap <documents...>',
+    "export and upload Logic Pro documents' tracks to Soundtrap",
+    (yargs) =>
+      yargs
+        .positional('documents', {
+          type: 'string',
+          array: true,
+          demandOption: true,
+        })
+        .options({
+          ...loginOptions,
+          folder: {
+            alias: ['f'],
+            type: 'string',
+          },
+          collaboratorEmails: {
+            alias: ['c', 'collaborators'],
+            type: 'array',
+          },
+        }),
+    async ({documents, username, password, folder, collaboratorEmails}) => {
+      const projects = await exportDocuments(documents)
+      await uploadToSoundtrap(projects, {
+        browserType: webkit,
+        username,
+        password,
+        folder,
+        collaboratorEmails: collaboratorEmails?.map(String),
+      })
+    },
+  )
 
-    .parse();
-}
+  .command('export', 'handles exporting Logic Pro files', (yargs) =>
+    yargs
+      .command(
+        '* <documents...>',
+        'export the tracks from a logic document',
+        (yargs) =>
+          yargs.positional('documents', {
+            type: 'string',
+            array: true,
+            demandOption: true,
+          }),
+        async ({documents}) => {
+          for (const document of documents) {
+            await exportTracks(document)
+          }
+        },
+      )
 
-main();
+      .command('cache', 'manage the exported tracks cache', (yargs) =>
+        yargs
+          .command(
+            ['list', 'ls'],
+            'list the currently cached exported tracks',
+            {},
+            async () => {
+              const entries = await toArray(exportCache)
+              if (entries.length <= 0) {
+                console.log('no project exports cached')
+                return
+              }
+
+              console.table(
+                entries.map(([projectFile, exportedTracksDir]) => ({
+                  projectFile,
+                  exportedTracksDir,
+                })),
+              )
+            },
+          )
+
+          .command(
+            ['clear', 'clr', 'clean', 'cln'],
+            'clear cached exported tracks',
+            {},
+            async () => {
+              let hasData = false
+              for await (const [
+                projectFile,
+                exportedTracksDir,
+              ] of exportCache) {
+                await logAction(
+                  `removing '${exportedTracksDir}' for '${projectFile}'`,
+                  async () => {
+                    await fs.rm(exportedTracksDir, {
+                      recursive: true,
+                      force: true,
+                    })
+                    await exportCache.delete(projectFile)
+                  },
+                )
+                hasData = true
+              }
+
+              if (!hasData) {
+                console.log('export cache is empty')
+              }
+            },
+          ),
+      ),
+  )
+
+  .parse()
