@@ -1,8 +1,9 @@
 import convert from 'convert-units'
 
-import type {Project} from './project'
-import type {LoginHandler, UploadTracksParameters} from './upload'
-import {initiateFileChooser} from './utils.js'
+import type {Project} from '../project.js'
+import {initiateFileChooser} from '../utils.js'
+
+import type {LoginHandler, UploadTracksParameters} from '.'
 
 export type SoundtrapUploadParameters = {
   folder: string | undefined

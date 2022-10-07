@@ -3,10 +3,11 @@ import {some} from 'modern-async'
 import type {BrowserType} from 'playwright'
 import {$, path} from 'zx'
 
-import type {Project} from './project'
-import {compressProjectFiles} from './project.js'
-import type {LoginHandler, UploadTracksParameters} from './upload'
-import {initiateFileChooser} from './utils.js'
+import type {Project} from '../project.js'
+import {compressProjectFiles} from '../project.js'
+import {initiateFileChooser} from '../utils.js'
+
+import type {LoginHandler, UploadTracksParameters} from '.'
 
 const maxFileUploadSize = convert(120).from('MB').to('B')
 

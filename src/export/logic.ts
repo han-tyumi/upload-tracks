@@ -1,42 +1,17 @@
-import {kvsLocalStorage} from '@kvs/node-localstorage'
 import {clipboard, Key, keyboard} from '@nut-tree/nut-js'
 import {watch} from 'chokidar'
 import convert from 'convert-units'
 import {$, fs, os, path, sleep} from 'zx'
 
-import type {Project} from './project.js'
-import {logAction, tap} from './utils.js'
+import {logAction, tap} from '../utils.js'
 
-export const exportCache = await kvsLocalStorage<Record<string, string>>({
-  name: 'export-tracks',
-  version: 1,
-})
+import type {TrackExporter} from '.'
+import {exportCache} from '.'
 
-export async function exportDocuments(documents: string[]) {
-  const exports: Record<string, string> = {}
-
-  for (const document of documents) {
-    const {name} = path.parse(document)
-    exports[name] = await exportTracks(document)
-  }
-
-  const projects = await Promise.all(
-    Object.entries(exports).map(async ([name, directory]) => {
-      const files = await fs.readdir(directory)
-      const project: Project = {
-        name,
-        files: files.map((file) => path.join(directory, file)),
-      }
-
-      return project
-    }),
-  )
-
-  return projects
-}
-
-export async function exportTracks(file: string) {
-  const cachedDir = await exportCache.get(file)
+export const exportTracksFromLogic: TrackExporter = async (
+  projectFile: string,
+) => {
+  const cachedDir = await exportCache.get(projectFile)
   if (cachedDir) {
     console.log(`using cached export files at ${cachedDir}`)
     return cachedDir
@@ -48,8 +23,8 @@ export async function exportTracks(file: string) {
   )
 
   try {
-    await logAction(`opening '${file}' in logic`, async () => {
-      await $`open ${file} -a 'Logic Pro X.app'`
+    await logAction(`opening '${projectFile}' in logic`, async () => {
+      await $`open ${projectFile} -a 'Logic Pro X.app'`
       await sleep(convert(5).from('s').to('ms'))
     })
 
@@ -95,7 +70,7 @@ export async function exportTracks(file: string) {
       await watcher.close()
     })
 
-    await exportCache.set(file, dir)
+    await exportCache.set(projectFile, dir)
 
     await logAction('closing project', async () => {
       await tap(Key.LeftSuper, Key.W)

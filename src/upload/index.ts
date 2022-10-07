@@ -13,3 +13,6 @@ export type LoginHandler = (
 export type UploadTracksParameters = {
   browserType: BrowserType
 } & LoginParameters
+
+export * from './bandlab.js'
+export * from './soundtrap.js'

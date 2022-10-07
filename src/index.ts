@@ -8,9 +8,12 @@ import type {Options} from 'yargs'
 import yargs from 'yargs'
 import {$, fs} from 'zx'
 
-import {uploadToBandLab} from './bandlab.js'
-import {exportDocuments, exportCache, exportTracks} from './export.js'
-import {uploadToSoundtrap} from './soundtrap.js'
+import {
+  exportDocuments,
+  exportCache,
+  exportTracksFromLogic,
+} from './export/index.js'
+import {uploadToBandLab, uploadToSoundtrap} from './upload/index.js'
 import {logAction} from './utils.js'
 
 $.verbose = false
@@ -53,7 +56,7 @@ await yargs(process.argv.slice(2))
           },
         }),
     async ({documents, username, password, libraryPath}) => {
-      const projects = await exportDocuments(documents)
+      const projects = await exportDocuments(documents, exportTracksFromLogic)
       await uploadToBandLab(projects, {
         browserType: webkit,
         username,
@@ -85,7 +88,7 @@ await yargs(process.argv.slice(2))
           },
         }),
     async ({documents, username, password, folder, collaboratorEmails}) => {
-      const projects = await exportDocuments(documents)
+      const projects = await exportDocuments(documents, exportTracksFromLogic)
       await uploadToSoundtrap(projects, {
         browserType: webkit,
         username,
@@ -99,7 +102,7 @@ await yargs(process.argv.slice(2))
   .command('export', 'handles exporting Logic Pro files', (yargs) =>
     yargs
       .command(
-        '* <documents...>',
+        'logic <documents...>',
         'export the tracks from a logic document',
         (yargs) =>
           yargs.positional('documents', {
@@ -109,7 +112,7 @@ await yargs(process.argv.slice(2))
           }),
         async ({documents}) => {
           for (const document of documents) {
-            await exportTracks(document)
+            await exportTracksFromLogic(document)
           }
         },
       )
