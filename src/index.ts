@@ -1,7 +1,9 @@
 import 'dotenv/config.js' // eslint-disable-line import/no-unassigned-import
 
 import process from 'node:process'
+
 import {keyboard} from '@nut-tree/nut-js'
+import {cosmiconfig} from 'cosmiconfig'
 import {toArray} from 'modern-async'
 import {webkit} from 'playwright'
 import type {Options} from 'yargs'
@@ -35,7 +37,7 @@ const loginOptions = options({
   },
 })
 
-await yargs(process.argv.slice(2))
+const argv = yargs(process.argv.slice(2))
   .env('UT')
 
   .command(
@@ -170,4 +172,13 @@ await yargs(process.argv.slice(2))
       ),
   )
 
-  .parse()
+const explorer = cosmiconfig('ut')
+const searchResult = await explorer.search()
+
+await (searchResult?.config
+  ? argv.config(searchResult.config)
+  : argv.config('C', 'Path to config file', async (configPath) => {
+      const result = await explorer.load(configPath)
+      return result?.config as Record<string, unknown> | undefined
+    })
+).parse()

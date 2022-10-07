@@ -1,4 +1,5 @@
 import process from 'node:process'
+
 import type {Key} from '@nut-tree/nut-js'
 import {keyboard} from '@nut-tree/nut-js'
 import type {Page} from 'playwright'

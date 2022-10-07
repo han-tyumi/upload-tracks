@@ -24,6 +24,7 @@
     "@types/yargs": "^17.0.13",
     "chokidar": "^3.5.3",
     "convert-units": "^2.3.4",
+    "cosmiconfig": "^7.0.1",
     "dotenv": "^16.0.3",
     "modern-async": "^1.1.2",
     "playwright": "^1.26.1",
