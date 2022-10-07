@@ -5,8 +5,8 @@ import {$, fs, os, path, sleep} from 'zx'
 
 import {logAction, tap} from '../utils.js'
 
-import type {TrackExporter} from '.'
-import {exportCache} from '.'
+import type {TrackExporter} from './index.js'
+import {exportCache} from './index.js'
 
 export const exportTracksFromLogic: TrackExporter = async (
   projectFile: string,

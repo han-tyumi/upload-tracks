@@ -7,7 +7,7 @@ import type {Project} from '../project.js'
 import {compressProjectFiles} from '../project.js'
 import {initiateFileChooser} from '../utils.js'
 
-import type {LoginHandler, UploadTracksParameters} from '.'
+import type {LoginHandler, UploadTracksParameters} from './index.js'
 
 const maxFileUploadSize = convert(120).from('MB').to('B')
 
