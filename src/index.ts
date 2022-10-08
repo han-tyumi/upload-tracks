@@ -36,11 +36,17 @@ const loginOptions = options({
 })
 
 const argv = yargs(process.argv.slice(2))
+  .scriptName('ut')
+  .strict()
   .env('UT')
+  .completion('completion', 'Generate completion script')
+  .recommendCommands()
+  .version()
+  .help()
 
   .command(
     'bandlab <documents...>',
-    "export and upload Logic Pro documents' tracks to BandLab",
+    'Upload Logic Pro projects to BandLab',
     (yargs) =>
       yargs
         .positional('documents', {
@@ -68,7 +74,7 @@ const argv = yargs(process.argv.slice(2))
 
   .command(
     'soundtrap <documents...>',
-    "export and upload Logic Pro documents' tracks to Soundtrap",
+    'Upload Logic Pro projects to Soundtrap',
     (yargs) =>
       yargs
         .positional('documents', {
@@ -99,73 +105,69 @@ const argv = yargs(process.argv.slice(2))
     },
   )
 
-  .command('export', 'handles exporting Logic Pro files', (yargs) =>
+  .command('export', 'Export Desktop DAW projects', (yargs) =>
+    yargs.command(
+      'logic <documents...>',
+      'Export all tracks from a Logic Pro document',
+      (yargs) =>
+        yargs.positional('documents', {
+          type: 'string',
+          array: true,
+          demandOption: true,
+        }),
+      async ({documents}) => {
+        await exportDocuments(documents, exportTracksFromLogic)
+      },
+    ),
+  )
+
+  .command('cache', 'Manage the exported project tracks cache', (yargs) =>
     yargs
       .command(
-        'logic <documents...>',
-        'export the tracks from a logic document',
-        (yargs) =>
-          yargs.positional('documents', {
-            type: 'string',
-            array: true,
-            demandOption: true,
-          }),
-        async ({documents}) => {
-          await exportDocuments(documents, exportTracksFromLogic)
+        ['list', 'ls'],
+        'List the currently cached exported project tracks',
+        {},
+        async () => {
+          const entries = await toArray(exportCache)
+          if (entries.length <= 0) {
+            console.log('no project exports cached')
+            return
+          }
+
+          console.table(
+            entries.map(([projectFile, exportedTracksDir]) => ({
+              projectFile,
+              exportedTracksDir,
+            })),
+          )
         },
       )
 
-      .command('cache', 'manage the exported tracks cache', (yargs) =>
-        yargs
-          .command(
-            ['list', 'ls'],
-            'list the currently cached exported tracks',
-            {},
-            async () => {
-              const entries = await toArray(exportCache)
-              if (entries.length <= 0) {
-                console.log('no project exports cached')
-                return
-              }
+      .command(
+        ['clear', 'clr', 'clean', 'cln'],
+        'Clear the cached exported project tracks',
+        {},
+        async () => {
+          let hasData = false
+          for await (const [projectFile, exportedTracksDir] of exportCache) {
+            await logAction(
+              `removing '${exportedTracksDir}' for '${projectFile}'`,
+              async () => {
+                await fs.rm(exportedTracksDir, {
+                  recursive: true,
+                  force: true,
+                })
+              },
+            )
+            hasData = true
+          }
 
-              console.table(
-                entries.map(([projectFile, exportedTracksDir]) => ({
-                  projectFile,
-                  exportedTracksDir,
-                })),
-              )
-            },
-          )
-
-          .command(
-            ['clear', 'clr', 'clean', 'cln'],
-            'clear cached exported tracks',
-            {},
-            async () => {
-              let hasData = false
-              for await (const [
-                projectFile,
-                exportedTracksDir,
-              ] of exportCache) {
-                await logAction(
-                  `removing '${exportedTracksDir}' for '${projectFile}'`,
-                  async () => {
-                    await fs.rm(exportedTracksDir, {
-                      recursive: true,
-                      force: true,
-                    })
-                  },
-                )
-                hasData = true
-              }
-
-              if (hasData) {
-                await exportCache.clear()
-              } else {
-                console.log('export cache is empty')
-              }
-            },
-          ),
+          if (hasData) {
+            await exportCache.clear()
+          } else {
+            console.log('export cache is empty')
+          }
+        },
       ),
   )
 
