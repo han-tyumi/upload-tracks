@@ -1,9 +1,7 @@
-import 'dotenv/config.js' // eslint-disable-line import/no-unassigned-import
-
 import process from 'node:process'
 
 import {keyboard} from '@nut-tree/nut-js'
-import {cosmiconfig} from 'cosmiconfig'
+import {cosmiconfigSync} from 'cosmiconfig'
 import {toArray} from 'modern-async'
 import {webkit} from 'playwright'
 import type {Options} from 'yargs'
@@ -158,13 +156,14 @@ const argv = yargs(process.argv.slice(2))
                       recursive: true,
                       force: true,
                     })
-                    await exportCache.delete(projectFile)
                   },
                 )
                 hasData = true
               }
 
-              if (!hasData) {
+              if (hasData) {
+                await exportCache.clear()
+              } else {
                 console.log('export cache is empty')
               }
             },
@@ -172,13 +171,13 @@ const argv = yargs(process.argv.slice(2))
       ),
   )
 
-const explorer = cosmiconfig('ut')
-const searchResult = await explorer.search()
+const explorer = cosmiconfigSync('ut')
+const searchResult = explorer.search()
 
 await (searchResult?.config
   ? argv.config(searchResult.config)
-  : argv.config('C', 'Path to config file', async (configPath) => {
-      const result = await explorer.load(configPath)
-      return result?.config as Record<string, unknown> | undefined
+  : argv.config('C', 'Path to config file', (configPath) => {
+      const result = explorer.load(configPath)
+      return result?.config as Record<string, unknown>
     })
 ).parse()

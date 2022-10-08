@@ -1,4 +1,8 @@
 {
   "extends": "@tsconfig/node18-strictest-esm/tsconfig.json",
-  "exclude": ["xo.config.cjs"]
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*"]
 }
