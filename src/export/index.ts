@@ -17,8 +17,9 @@ export async function exportDocuments(
   const exports: Record<string, string> = {}
 
   for (const document of documents) {
-    const {name} = path.parse(document)
-    exports[name] = await exportTracks(document)
+    const absPath = path.resolve(document)
+    const {name} = path.parse(absPath)
+    exports[name] = await exportTracks(absPath)
   }
 
   const projects = await Promise.all(

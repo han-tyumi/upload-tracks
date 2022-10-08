@@ -111,9 +111,7 @@ const argv = yargs(process.argv.slice(2))
             demandOption: true,
           }),
         async ({documents}) => {
-          for (const document of documents) {
-            await exportTracksFromLogic(document)
-          }
+          await exportDocuments(documents, exportTracksFromLogic)
         },
       )
 
