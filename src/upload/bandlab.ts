@@ -77,16 +77,15 @@ export async function uploadToBandLab(
     await page.goto(libraryUrl)
 
     await page.locator('a:has-text("New")').click()
-    const fileChooser = await initiateFileChooser(page, 'text=Import File')
-    await fileChooser.setFiles(files)
+    await page.locator('.modal-close').click()
 
-    await Promise.all(
-      files.map(async (file) =>
-        page
-          .locator(`'${path.basename(file)}'`)
-          .waitFor({timeout: convert(5).from('min').to('ms')}),
-      ),
-    )
+    for (const file of files) {
+      const fileChooser = await initiateFileChooser(
+        page,
+        'text=Drop a loop or an audio/MIDI file',
+      )
+      await fileChooser.setFiles(file)
+    }
 
     await page.locator('[placeholder="New Project"]').fill(name)
     await page.locator('button:has-text("Save")').click()
