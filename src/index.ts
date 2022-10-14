@@ -37,7 +37,6 @@ const loginOptions = options({
 
 const argv = yargs(process.argv.slice(2))
   .scriptName('ut')
-  .strict()
   .env('UT')
   .completion('completion', 'Generate completion script')
   .recommendCommands()
