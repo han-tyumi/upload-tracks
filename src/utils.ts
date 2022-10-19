@@ -1,7 +1,5 @@
 import process from 'node:process'
 
-import type {Key} from '@nut-tree/nut-js'
-import {keyboard} from '@nut-tree/nut-js'
 import type {Page} from 'playwright'
 
 export const logAction = async <T>(
@@ -17,11 +15,6 @@ export const logAction = async <T>(
     process.stderr.write(' error\n')
     throw error
   }
-}
-
-export const tap = async (...keys: Key[]) => {
-  await keyboard.pressKey(...keys)
-  await keyboard.releaseKey(...keys)
 }
 
 export const initiateFileChooser = async (page: Page, selector: string) => {

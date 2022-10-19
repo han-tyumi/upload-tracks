@@ -1,9 +1,8 @@
 import process from 'node:process'
 
-import {keyboard} from '@nut-tree/nut-js'
 import {cosmiconfigSync} from 'cosmiconfig'
 import {toArray} from 'modern-async'
-import {webkit} from 'playwright'
+import {firefox} from 'playwright'
 import type {Options} from 'yargs'
 import yargs from 'yargs'
 import {$, fs} from 'zx'
@@ -17,8 +16,6 @@ import {uploadToBandLab, uploadToSoundtrap} from './upload/index.js'
 import {logAction} from './utils.js'
 
 $.verbose = false
-
-keyboard.config.autoDelayMs = 100
 
 const options = <T extends Record<string, Options>>(options: T) => options
 
@@ -63,7 +60,7 @@ const argv = yargs(process.argv.slice(2))
     async ({documents, username, password, libraryPath}) => {
       const projects = await exportDocuments(documents, exportTracksFromLogic)
       await uploadToBandLab(projects, {
-        browserType: webkit,
+        browserType: firefox,
         username,
         password,
         libraryPath,
@@ -95,7 +92,7 @@ const argv = yargs(process.argv.slice(2))
     async ({documents, username, password, folder, collaboratorEmails}) => {
       const projects = await exportDocuments(documents, exportTracksFromLogic)
       await uploadToSoundtrap(projects, {
-        browserType: webkit,
+        browserType: firefox,
         username,
         password,
         folder,

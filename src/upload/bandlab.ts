@@ -64,7 +64,7 @@ export async function uploadToBandLab(
     )
   }
 
-  const browser = await browserType.launch({headless: false})
+  const browser = await browserType.launch()
   const context = await browser.newContext()
   const page = await context.newPage()
 
