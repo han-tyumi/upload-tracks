@@ -5,7 +5,7 @@ import {$, path} from 'zx'
 
 import type {Project} from '../project.js'
 import {compressProjectFiles} from '../project.js'
-import {initiateFileChooser} from '../utils.js'
+import {initiateFileChooser, logAction} from '../utils.js'
 
 import type {LoginHandler, UploadTracksParameters} from './index.js'
 
@@ -42,7 +42,7 @@ export async function uploadToBandLab(
   projects: Project[],
   {browserType, libraryPath = '', ...loginParameters}: BandLabUploadParameters,
 ) {
-  const uploadableProject: Project[] = []
+  const uploadableProjects: Project[] = []
   for (const project of projects) {
     if (
       await some(project.files, async (file) => {
@@ -55,7 +55,7 @@ export async function uploadToBandLab(
       continue
     }
 
-    uploadableProject.push(
+    uploadableProjects.push(
       await compressProjectFiles(
         project,
         maxFileUploadSize,
@@ -64,35 +64,60 @@ export async function uploadToBandLab(
     )
   }
 
-  const browser = await browserType.launch()
-  const context = await browser.newContext()
-  const page = await context.newPage()
+  const {browser, page} = await logAction('opening browser', async () => {
+    const browser = await browserType.launch()
+    const context = await browser.newContext()
+    const page = await context.newPage()
+    return {browser, context, page}
+  })
 
   const libraryUrl = path.join(baseLibraryUrl, libraryPath)
-  await page.goto(libraryUrl)
-  await login(page, loginParameters)
-  await page.waitForNavigation({url: libraryUrl})
-
-  for (const {name, files} of uploadableProject) {
+  await logAction('logging in', async () => {
     await page.goto(libraryUrl)
+    await login(page, loginParameters)
+    await page.waitForNavigation({url: libraryUrl})
+  })
 
-    await page.locator('a:has-text("New")').click()
-    await page.locator('.modal-close').click()
+  let projectIndex = 0
+  const totalProjects = uploadableProjects.length
+  for (const {name, files} of uploadableProjects) {
+    projectIndex += 1
+    const projectCount = `[${projectIndex}/${totalProjects}]`
 
+    await logAction(
+      `${projectCount} creating new project for ${name}`,
+      async () => {
+        await page.goto(libraryUrl)
+        await page.locator('a:has-text("New")').click()
+        await page.locator('.modal-close').click()
+      },
+    )
+
+    let fileIndex = 0
+    const totalFiles = files.length
     for (const file of files) {
-      const fileChooser = await initiateFileChooser(
-        page,
-        'text=Drop a loop or an audio/MIDI file',
-      )
-      await fileChooser.setFiles(file)
+      fileIndex += 1
+      const fileCount = `${projectCount} [${fileIndex}/${totalFiles}]`
+
+      const {base} = path.parse(file)
+      await logAction(`${fileCount} uploading ${base}`, async () => {
+        const fileChooser = await initiateFileChooser(
+          page,
+          'text=Drop a loop or an audio/MIDI file',
+        )
+        await fileChooser.setFiles([file])
+        await page.getByText(base, {exact: true}).waitFor()
+      })
     }
 
-    await page.locator('[placeholder="New Project"]').fill(name)
-    await page.locator('button:has-text("Save")').click()
-    await page
-      .locator('text=Revision saved')
-      .waitFor({timeout: convert(5).from('min').to('ms')})
+    await logAction(`${projectCount} saving ${name}`, async () => {
+      await page.locator('[placeholder="New Project"]').fill(name)
+      await page.locator('button:has-text("Save")').click()
+      await page
+        .locator('text=Revision saved')
+        .waitFor({timeout: convert(5).from('min').to('ms')})
+    })
   }
 
-  await browser.close()
+  await logAction('closing browser', browser.close())
 }
