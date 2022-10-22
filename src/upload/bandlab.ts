@@ -99,14 +99,17 @@ export async function uploadToBandLab(
       fileIndex += 1
       const fileCount = `${projectCount} [${fileIndex}/${totalFiles}]`
 
-      const {base} = path.parse(file)
+      const {base, name} = path.parse(file)
+      const hashIndex = name.indexOf('#')
+      const trackName = name.slice(0, hashIndex > 0 ? hashIndex : undefined)
+
       await logAction(`${fileCount} uploading ${base}`, async () => {
         const fileChooser = await initiateFileChooser(
           page,
           'text=Drop a loop or an audio/MIDI file',
         )
         await fileChooser.setFiles([file])
-        await page.getByText(base, {exact: true}).waitFor()
+        await page.getByRole('textbox', {name: 'Track'}).fill(trackName)
       })
     }
 
