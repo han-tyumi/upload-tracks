@@ -1,0 +1,14 @@
+{
+  "imports": {
+    "cliffy": "https://deno.land/x/cliffy@v0.25.2/mod.ts",
+    "dax": "https://deno.land/x/dax@0.15.0/mod.ts",
+    "log": "https://deno.land/std@0.160.0/log/mod.ts",
+    "log/levels": "https://deno.land/std@0.160.0/log/levels.ts",
+    "modern-async": "https://esm.sh/modern-async@1.1.2",
+    "simple-plist": "https://esm.sh/simple-plist@1.4.0",
+    "puppeteer": "https://deno.land/x/puppeteer@16.2.0/mod.ts",
+
+    "lib/": "./lib/",
+    "cli/": "./cli/"
+  }
+}

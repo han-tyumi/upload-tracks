@@ -1,0 +1,18 @@
+{
+  "importMap": "import_map.json",
+  "tasks": {
+    "run": "deno run --unstable --allow-env --allow-read --allow-write --allow-net --allow-run --allow-sys main.ts"
+  },
+  "lint": {
+    "rules": {
+      "include": [
+        "camelcase",
+        "default-param-last",
+        "eqeqeq",
+        "explicit-function-return-type",
+        "no-const-assign",
+        "no-eval"
+      ]
+    }
+  }
+}

@@ -1,5 +1,13 @@
 {
+  "deno.enable": true,
+  "deno.unstable": true,
+  "deno.config": "deno.jsonc",
+
   "editor.formatOnSave": true,
-  "editor.defaultFormatter": "samverschueren.linter-xo",
-  "cSpell.words": ["bandlab", "Soundtrap"]
+  "editor.defaultFormatter": "denoland.vscode-deno",
+
+  "cSpell.words": [
+    "bandlab",
+    "Soundtrap"
+  ]
 }
