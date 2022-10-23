@@ -1,10 +1,9 @@
 import {firefox} from 'playwright'
-import {sleep} from 'zx'
 
 import {
+  closedLogicDocuments,
   exportDocuments,
   exportTracksFromLogic,
-  getOpenLogicDocument,
 } from '../export/index.js'
 import type {LoginParameters} from '../upload/index.js'
 import {uploadToBandLab} from '../upload/index.js'
@@ -13,8 +12,6 @@ import {commandModule} from '../utils.js'
 type UploadDocumentsParameters = {
   libraryPath: string | undefined
 } & LoginParameters
-
-const watchInterval = 2 * 1000
 
 async function uploadDocuments(
   documents: string[],
@@ -33,27 +30,21 @@ async function uploadOpenedDocumentsOnClose(
   watchDirPaths: string[],
   {username, password, libraryPath}: UploadDocumentsParameters,
 ) {
-  let lastOpenDocument: string | undefined
+  const documentGenerator = closedLogicDocuments(watchDirPaths)
 
   for (;;) {
     console.log(`watching ${watchDirPaths.join(', ')} ...`)
 
-    for (;;) {
-      const openDocument = await getOpenLogicDocument(watchDirPaths)
-
-      if (lastOpenDocument && openDocument !== lastOpenDocument) {
-        await uploadDocuments([lastOpenDocument], {
-          username,
-          password,
-          libraryPath,
-        })
-        break
-      }
-
-      lastOpenDocument = openDocument
-
-      await sleep(watchInterval)
+    const {value: document} = await documentGenerator.next()
+    if (!document) {
+      return
     }
+
+    await uploadDocuments([document], {
+      username,
+      password,
+      libraryPath,
+    })
   }
 }
 

@@ -109,3 +109,17 @@ export async function getOpenLogicDocument(documents: string[]) {
     return project
   }
 }
+
+export async function* closedLogicDocuments(watchDirPaths: string[]) {
+  let lastOpenDocument: string | undefined
+
+  for (;;) {
+    const openDocument = await getOpenLogicDocument(watchDirPaths)
+
+    if (lastOpenDocument && openDocument !== lastOpenDocument) {
+      yield lastOpenDocument
+    }
+
+    lastOpenDocument = openDocument
+  }
+}
