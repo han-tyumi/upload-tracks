@@ -1,6 +1,6 @@
 import {promisify} from 'node:util'
 import plist from 'simple-plist'
-import {$, fs, os, path} from 'zx'
+import {$, fs, os, path, ProcessOutput} from 'zx'
 
 import {logAction} from '../utils.js'
 
@@ -31,6 +31,8 @@ type MetaData = {
   Version: number
   isTimeCodeBased: boolean
 }
+
+export const logicDocumentExtension = '.logicx'
 
 export const exportTracksFromLogic: TrackExporter = async (
   projectFile: string,
@@ -77,4 +79,33 @@ export const exportTracksFromLogic: TrackExporter = async (
 
   await exportCache.set(projectFile, dir)
   return dir
+}
+
+export async function getOpenLogicDocument(documents: string[]) {
+  try {
+    // lsof returns a 1 exit code (error) in this case
+    await $`lsof -F n +D ${documents} | grep ${logicDocumentExtension}`
+    return
+  } catch (error: unknown) {
+    if (!(error instanceof ProcessOutput) || error.stderr) {
+      return
+    }
+
+    const dirPath = error.stdout.split('\n').at(1)
+    if (!dirPath) {
+      return
+    }
+
+    const project = dirPath.slice(
+      dirPath.indexOf('/'),
+      dirPath.lastIndexOf(logicDocumentExtension) +
+        logicDocumentExtension.length,
+    )
+
+    if (path.parse(project).name.startsWith('Untitled')) {
+      return
+    }
+
+    return project
+  }
 }

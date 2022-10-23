@@ -4,6 +4,7 @@ module.exports = {
   semicolon: false,
   prettier: true,
   rules: {
+    'capitalized-comments': 'off',
     'no-await-in-loop': 'off',
   },
 }
