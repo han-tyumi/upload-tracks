@@ -110,6 +110,7 @@ export async function uploadToBandLab(
         )
         await fileChooser.setFiles([file])
         await page.getByRole('textbox', {name: 'Track'}).fill(trackName)
+        await page.getByText(base, {exact: true}).waitFor()
       })
     }
 
