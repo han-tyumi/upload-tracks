@@ -3,6 +3,7 @@ import {some} from 'modern-async'
 import type {BrowserType} from 'playwright'
 import {$, path} from 'zx'
 
+import {getLogicAudioFileName} from '../export/logic.js'
 import type {Project} from '../project.js'
 import {compressProjectFiles} from '../project.js'
 import {initiateFileChooser, logAction} from '../utils.js'
@@ -99,9 +100,8 @@ export async function uploadToBandLab(
       fileIndex += 1
       const fileCount = `${projectCount} [${fileIndex}/${totalFiles}]`
 
-      const {base, name} = path.parse(file)
-      const hashIndex = name.indexOf('#')
-      const trackName = name.slice(0, hashIndex > 0 ? hashIndex : undefined)
+      const {base} = path.parse(file)
+      const trackName = getLogicAudioFileName(file)
 
       await logAction(`${fileCount} uploading ${base}`, async () => {
         const fileChooser = await initiateFileChooser(

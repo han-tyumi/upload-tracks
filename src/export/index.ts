@@ -19,7 +19,12 @@ export async function exportDocuments(
   for (const document of documents) {
     const absPath = path.resolve(document)
     const {name} = path.parse(absPath)
-    exports[name] = await exportTracks(absPath)
+
+    try {
+      exports[name] = await exportTracks(absPath)
+    } catch (error: unknown) {
+      console.error(error)
+    }
   }
 
   const projects = await Promise.all(

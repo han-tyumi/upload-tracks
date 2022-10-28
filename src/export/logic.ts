@@ -34,6 +34,13 @@ type MetaData = {
 
 export const logicDocumentExtension = '.logicx'
 
+export const getLogicAudioFileName = (filePath: string) => {
+  const {name} = path.parse(filePath)
+  const hashIndex = name.indexOf('#')
+  const trackName = name.slice(0, hashIndex > 0 ? hashIndex : undefined)
+  return trackName
+}
+
 export const exportTracksFromLogic: TrackExporter = async (
   projectFile: string,
 ) => {
@@ -47,10 +54,20 @@ export const exportTracksFromLogic: TrackExporter = async (
   const metaData: MetaData | undefined = await promisify(plist.readFile)(
     metaDataPath,
   )
+
+  const fileNames = new Set<string>()
   const files = metaData?.AudioFiles.filter(
     (audioFilePath) =>
       !audioFilePath.startsWith('Audio Files/Smart Tempo Multitrack Set '),
-  ).map((audioFilePath) => path.join(projectFile, 'Media', audioFilePath))
+  ).map((audioFilePath) => {
+    const name = getLogicAudioFileName(audioFilePath)
+    if (fileNames.has(name)) {
+      throw new Error(`found multiple ${name} tracks`)
+    }
+
+    fileNames.add(name)
+    return path.join(projectFile, 'Media', audioFilePath)
+  })
 
   if (!files || files.length <= 0) {
     throw new Error('AudioFiles not found')
