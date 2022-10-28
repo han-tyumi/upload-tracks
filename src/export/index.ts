@@ -18,12 +18,12 @@ export async function exportDocuments(
 
   for (const document of documents) {
     const absPath = path.resolve(document)
-    const {name} = path.parse(absPath)
+    const {name, base} = path.parse(absPath)
 
     try {
       exports[name] = await exportTracks(absPath)
     } catch (error: unknown) {
-      console.error(error)
+      console.error(base + ':', error instanceof Error ? error.message : error)
     }
   }
 
