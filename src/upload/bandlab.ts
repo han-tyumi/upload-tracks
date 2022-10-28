@@ -123,12 +123,15 @@ export async function uploadToBandLab(
       const trackName = getLogicAudioFileName(file)
 
       await logAction(`${fileCount} uploading ${base}`, async () => {
+        await page.getByText('Add Track').click()
+        await page.getByText('Voice/AudioRecord with AutoPitch + Fx').click()
+        await page.getByRole('textbox', {name: 'Voice/Audio'}).fill(trackName)
+        await page.locator('.mix-editor-track-header-settings').last().click()
         const fileChooser = await initiateFileChooser(
           page,
-          'text=Drop a loop or an audio/MIDI file',
+          'text=Import from Disk',
         )
         await fileChooser.setFiles([file])
-        await page.getByRole('textbox', {name: 'Track'}).fill(trackName)
         await page.getByText(base, {exact: true}).waitFor()
       })
     }
