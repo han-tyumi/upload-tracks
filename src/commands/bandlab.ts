@@ -1,4 +1,6 @@
+import type {Page} from 'playwright'
 import {firefox} from 'playwright'
+import {path} from 'zx'
 
 import {
   closedLogicDocuments,
@@ -11,26 +13,26 @@ import {commandModule} from '../utils.js'
 
 type UploadDocumentsParameters = {
   libraryPath: string | undefined
+  persistPage?: Page | true | undefined
 } & LoginParameters
 
 async function uploadDocuments(
   documents: string[],
-  {username, password, libraryPath}: UploadDocumentsParameters,
+  parameters: UploadDocumentsParameters,
 ) {
   const projects = await exportDocuments(documents, exportTracksFromLogic)
-  await uploadToBandLab(projects, {
+  return uploadToBandLab(projects, {
     browserType: firefox,
-    username,
-    password,
-    libraryPath,
+    ...parameters,
   })
 }
 
 async function uploadOpenedDocumentsOnClose(
   watchDirPaths: string[],
-  {username, password, libraryPath}: UploadDocumentsParameters,
+  parameters: UploadDocumentsParameters,
 ) {
   const documentGenerator = closedLogicDocuments(watchDirPaths)
+  let {persistPage} = parameters
 
   for (;;) {
     console.log(`watching ${watchDirPaths.join(', ')} ...`)
@@ -40,11 +42,10 @@ async function uploadOpenedDocumentsOnClose(
       return
     }
 
-    await uploadDocuments([document], {
-      username,
-      password,
-      libraryPath,
-    })
+    const page = await uploadDocuments([document], parameters)
+    if (persistPage && page) {
+      persistPage = page
+    }
   }
 }
 
@@ -84,7 +85,14 @@ export default commandModule(
 
   async ({documents, watch, ...parameters}) => {
     if (watch) {
-      await uploadOpenedDocumentsOnClose(documents, parameters)
+      await uploadOpenedDocumentsOnClose(
+        documents.map((document) => path.resolve(document)),
+        {
+          ...parameters,
+          persistPage: true,
+        },
+      )
+      return
     }
 
     await uploadDocuments(documents, parameters)

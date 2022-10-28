@@ -1,6 +1,6 @@
 import convert from 'convert-units'
 import {some} from 'modern-async'
-import type {BrowserType} from 'playwright'
+import type {BrowserType, Page} from 'playwright'
 import {$, path} from 'zx'
 
 import {getLogicAudioFileName} from '../export/logic.js'
@@ -36,13 +36,19 @@ export const baseLibraryUrl = 'https://www.bandlab.com/library'
 
 export type BandLabUploadParameters = {
   browserType: BrowserType
-  libraryPath: string | undefined
+  libraryPath?: string | undefined
+  persistPage?: Page | true | undefined
 } & UploadTracksParameters
 
 export async function uploadToBandLab(
   projects: Project[],
-  {browserType, libraryPath = '', ...loginParameters}: BandLabUploadParameters,
-) {
+  {
+    browserType,
+    libraryPath = '',
+    persistPage,
+    ...loginParameters
+  }: BandLabUploadParameters,
+): Promise<Page | void> {
   const uploadableProjects: Project[] = []
   for (const project of projects) {
     if (
@@ -65,19 +71,32 @@ export async function uploadToBandLab(
     )
   }
 
-  const {browser, page} = await logAction('opening browser', async () => {
-    const browser = await browserType.launch()
-    const context = await browser.newContext()
-    const page = await context.newPage()
-    return {browser, context, page}
-  })
+  if (uploadableProjects.length <= 0) {
+    return
+  }
+
+  const {browser, page} =
+    persistPage && persistPage !== true
+      ? (() => {
+          const context = persistPage.context()
+          const browser = context.browser()!
+          return {browser, page: persistPage}
+        })()
+      : await logAction('opening browser', async () => {
+          const browser = await browserType.launch()
+          const context = await browser.newContext()
+          const page = await context.newPage()
+          return {browser, page}
+        })
 
   const libraryUrl = path.join(baseLibraryUrl, libraryPath)
-  await logAction('logging in', async () => {
-    await page.goto(libraryUrl)
-    await login(page, loginParameters)
-    await page.waitForNavigation({url: libraryUrl})
-  })
+  if (!persistPage || persistPage === true) {
+    await logAction('logging in', async () => {
+      await page.goto(libraryUrl)
+      await login(page, loginParameters)
+      await page.waitForNavigation({url: libraryUrl})
+    })
+  }
 
   let projectIndex = 0
   const totalProjects = uploadableProjects.length
@@ -123,5 +142,9 @@ export async function uploadToBandLab(
     })
   }
 
-  await logAction('closing browser', browser.close())
+  if (persistPage === undefined) {
+    await logAction('closing browser', browser.close())
+  } else {
+    return page
+  }
 }
