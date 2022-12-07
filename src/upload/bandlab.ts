@@ -37,6 +37,9 @@ export const baseLibraryUrl = 'https://www.bandlab.com/library'
 export type BandLabUploadParameters = {
   browserType: BrowserType
   libraryPath?: string | undefined
+  head?: boolean | undefined
+  slow?: number | undefined
+  pause?: boolean | undefined
   persistPage?: Page | true | undefined
 } & UploadTracksParameters
 
@@ -45,6 +48,9 @@ export async function uploadToBandLab(
   {
     browserType,
     libraryPath = '',
+    head,
+    slow,
+    pause,
     persistPage,
     ...loginParameters
   }: BandLabUploadParameters,
@@ -83,11 +89,18 @@ export async function uploadToBandLab(
           return {browser, page: persistPage}
         })()
       : await logAction('opening browser', async () => {
-          const browser = await browserType.launch()
+          const browser = await browserType.launch({
+            headless: !head,
+            slowMo: slow ?? 0,
+          })
           const context = await browser.newContext()
           const page = await context.newPage()
           return {browser, page}
         })
+
+  if (pause) {
+    await page.pause()
+  }
 
   const libraryUrl = path.join(baseLibraryUrl, libraryPath)
   if (!persistPage || persistPage === true) {

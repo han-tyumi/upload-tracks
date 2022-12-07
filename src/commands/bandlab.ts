@@ -13,6 +13,9 @@ import {commandModule} from '../utils.js'
 
 type UploadDocumentsParameters = {
   libraryPath: string | undefined
+  head?: boolean | undefined
+  slow?: number | undefined
+  pause?: boolean | undefined
   persistPage?: Page | true | undefined
 } & LoginParameters
 
@@ -76,6 +79,19 @@ export default commandModule(
         libraryPath: {
           alias: ['library', 'l'],
           type: 'string',
+        },
+        head: {
+          alias: ['h'],
+          type: 'boolean',
+        },
+        slow: {
+          alias: ['s'],
+          type: 'number',
+          default: 500,
+        },
+        pause: {
+          alias: ['P'],
+          type: 'boolean',
         },
         watch: {
           alias: ['w'],
