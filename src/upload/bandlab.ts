@@ -132,7 +132,9 @@ export async function uploadToBandLab(
           'text=Import from Disk',
         )
         await fileChooser.setFiles([file])
-        await page.getByText(base, {exact: true}).waitFor()
+        await page
+          .getByText(base, {exact: true})
+          .waitFor({timeout: convert(5).from('min').to('ms')})
       })
     }
 
