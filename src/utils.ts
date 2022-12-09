@@ -1,7 +1,9 @@
+import path from 'node:path'
 import process from 'node:process'
 
 import type {Page} from 'playwright'
 import type {CommandModule, ArgumentsCamelCase, CommandBuilder} from 'yargs'
+import {$} from 'zx'
 
 export const logAction = async <T>(
   action: string,
@@ -38,4 +40,52 @@ export function commandModule<T, U>(
     handler,
   }
   return module
+}
+
+export async function getTrackDuration(filePath: string) {
+  const {stdout: duration} =
+    await $`ffprobe -v error -show_entries format=duration -of csv='p=0' -i ${filePath}`
+  return Number.parseFloat(duration)
+}
+
+export type SuffixFunction = (segmentNumber: number) => string
+
+export type SplitTrackParameters = {
+  maxDuration: number
+  suffix?: SuffixFunction
+}
+
+export async function splitTrack(
+  filePath: string,
+  parameters: SplitTrackParameters,
+) {
+  const {
+    maxDuration: maxTrackLength,
+    suffix = (segmentNumber) => ` Part ${segmentNumber}`,
+  } = parameters
+
+  const duration = await getTrackDuration(filePath)
+  if (duration <= maxTrackLength) {
+    return [filePath]
+  }
+
+  const {dir, name, ext} = path.parse(filePath)
+  const segments = Math.ceil(duration / maxTrackLength)
+  const segmentDuration = duration / segments
+
+  const promises = []
+  let start = 0
+  for (let segment = 1; segment <= segments; segment += 1) {
+    const end = start + segmentDuration
+    promises.push(
+      (async (segment, start, end) => {
+        const newFilePath = path.join(dir, name + suffix(segment) + ext)
+        await $`ffmpeg -i ${filePath} -acodec copy -ss ${start} -to ${end} ${newFilePath}`
+        return newFilePath
+      })(segment, start, end),
+    )
+    start = end
+  }
+
+  return Promise.all(promises)
 }

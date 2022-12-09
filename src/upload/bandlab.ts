@@ -1,11 +1,10 @@
 import convert from 'convert-units'
-import {some} from 'modern-async'
 import type {BrowserType, Page} from 'playwright'
-import {$, path} from 'zx'
+import {path} from 'zx'
 
 import {getLogicAudioFileName} from '../export/logic.js'
 import type {Project} from '../project.js'
-import {compressProjectFiles} from '../project.js'
+import {splitProject, compressProjectFiles} from '../project.js'
 import {initiateFileChooser, logAction} from '../utils.js'
 
 import type {LoginHandler, UploadTracksParameters} from './index.js'
@@ -55,27 +54,17 @@ export async function uploadToBandLab(
     ...loginParameters
   }: BandLabUploadParameters,
 ): Promise<Page | void> {
-  const uploadableProjects: Project[] = []
-  for (const project of projects) {
-    if (
-      await some(project.files, async (file) => {
-        const {stdout: duration} =
-          await $`ffprobe -v error -show_entries format=duration -of csv='p=0' -i ${file}`
-        return Number.parseFloat(duration) > maxFileDuration
-      })
-    ) {
-      console.log(`${project.name} is too long; skipping upload`)
-      continue
-    }
-
-    uploadableProjects.push(
-      await compressProjectFiles(
+  const splitUploadableProjects = await Promise.all(
+    projects.map(async (project) => {
+      const compressedProject = await compressProjectFiles(
         project,
         maxFileUploadSize,
         FileUploadExtensions.AAC,
-      ),
-    )
-  }
+      )
+      return splitProject(compressedProject, {maxDuration: maxFileDuration})
+    }),
+  )
+  const uploadableProjects = splitUploadableProjects.flat()
 
   if (uploadableProjects.length <= 0) {
     return
