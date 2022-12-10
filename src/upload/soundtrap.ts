@@ -36,7 +36,7 @@ export async function uploadToSoundtrap(
   await page.waitForURL('https://www.soundtrap.com/studio/')
 
   let i = 0
-  for (const {name, files} of projects) {
+  for (const {name, audioFilePaths} of projects) {
     await page.goto('https://www.soundtrap.com/studio/')
 
     await page.locator('.st-uix-dialog-content-container > .closer').click()
@@ -69,7 +69,7 @@ export async function uploadToSoundtrap(
       page,
       '[aria-label="Import file"]',
     )
-    await fileChooser.setFiles(files)
+    await fileChooser.setFiles(audioFilePaths)
 
     await page.locator('[aria-label="Change\\a name"]').click()
     await page.locator('.projecttitleedit').fill(name)

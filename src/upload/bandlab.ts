@@ -4,23 +4,22 @@ import {path} from 'zx'
 
 import {getLogicAudioFileName} from '../export/logic.js'
 import type {Project} from '../project.js'
-import {splitProject, compressProjectFiles} from '../project.js'
 import {initiateFileChooser, logAction} from '../utils.js'
 
 import type {LoginHandler, UploadTracksParameters} from './index.js'
 
-const maxFileUploadSize = convert(120).from('MB').to('B')
+// const maxFileUploadSize = convert(120).from('MB').to('B')
 
 const maxFileDuration = convert(15).from('min').to('s')
 
-enum FileUploadExtensions {
-  MP3 = '.mp3',
-  MP4 = '.mp4',
-  WAV = '.wav',
-  AAC = '.aac',
-  M4A = '.m4a',
-  OGG = '.ogg',
-}
+// enum FileUploadExtensions {
+//   MP3 = '.mp3',
+//   MP4 = '.mp4',
+//   WAV = '.wav',
+//   AAC = '.aac',
+//   M4A = '.m4a',
+//   OGG = '.ogg',
+// }
 
 const login: LoginHandler = async (page, {username, password}) => {
   await page.locator('[placeholder="Username or email"]').fill(username)
@@ -54,19 +53,22 @@ export async function uploadToBandLab(
     ...loginParameters
   }: BandLabUploadParameters,
 ): Promise<Page | void> {
-  const splitUploadableProjects = await Promise.all(
+  await Promise.all(
     projects.map(async (project) => {
-      const compressedProject = await compressProjectFiles(
-        project,
-        maxFileUploadSize,
-        FileUploadExtensions.AAC,
-      )
-      return splitProject(compressedProject, {maxDuration: maxFileDuration})
+      if (!project.splitProjects) {
+        await project.split(maxFileDuration)
+        if (project.splitProjects) {
+          await project.saveToCache()
+        }
+      }
     }),
   )
-  const uploadableProjects = splitUploadableProjects.flat()
 
-  if (uploadableProjects.length <= 0) {
+  const projectsToUpload = projects.flatMap((project) =>
+    project.splitProjects ? project.splitProjects : [project],
+  )
+
+  if (projectsToUpload.length <= 0) {
     return
   }
 
@@ -101,8 +103,8 @@ export async function uploadToBandLab(
   }
 
   let projectIndex = 0
-  const totalProjects = uploadableProjects.length
-  for (const {name, files} of uploadableProjects) {
+  const totalProjects = projectsToUpload.length
+  for (const {name, audioFilePaths} of projectsToUpload) {
     projectIndex += 1
     const projectCount = `[${projectIndex}/${totalProjects}]`
 
@@ -116,8 +118,8 @@ export async function uploadToBandLab(
     )
 
     let fileIndex = 0
-    const totalFiles = files.length
-    for (const file of files) {
+    const totalFiles = audioFilePaths.length
+    for (const file of audioFilePaths) {
       fileIndex += 1
       const fileCount = `${projectCount} [${fileIndex}/${totalFiles}]`
 

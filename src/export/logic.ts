@@ -2,10 +2,10 @@ import {promisify} from 'node:util'
 import plist from 'simple-plist'
 import {$, fs, os, path, ProcessOutput} from 'zx'
 
+import {Project} from '../project.js'
 import {logAction} from '../utils.js'
 
-import type {TrackExporter} from './index.js'
-import {exportCache} from './index.js'
+import type {ProjectCreator} from './index.js'
 
 type MetaData = {
   AudioFiles: string[]
@@ -32,7 +32,7 @@ type MetaData = {
   isTimeCodeBased: boolean
 }
 
-export const logicDocumentExtension = '.logicx'
+export const logicProjectExtension = '.logicx'
 
 export const getLogicAudioFileName = (filePath: string) => {
   const {name} = path.parse(filePath)
@@ -41,102 +41,109 @@ export const getLogicAudioFileName = (filePath: string) => {
   return trackName
 }
 
-export const exportTracksFromLogic: TrackExporter = async (
-  projectFile: string,
+export const createExportedLogicProject: ProjectCreator = async (
+  projectPath: string,
 ) => {
-  const cachedDir = await exportCache.get(projectFile)
-  if (cachedDir) {
-    console.log(`using cached export files at ${cachedDir}`)
-    return cachedDir
+  const cachedProject = await new Project({path: projectPath}).loadFromCache()
+  if (cachedProject) {
+    return cachedProject
   }
 
-  const metaDataPath = path.join(projectFile, 'Alternatives/000/MetaData.plist')
+  const metaDataPath = path.join(projectPath, 'Alternatives/000/MetaData.plist')
   const metaData: MetaData | undefined = await promisify(plist.readFile)(
     metaDataPath,
   )
 
-  const fileNames = new Set<string>()
-  const files = metaData?.AudioFiles.filter(
+  const audioFileNames = new Set<string>()
+  const audioFilePaths = metaData?.AudioFiles.filter(
     (audioFilePath) =>
       !audioFilePath.startsWith('Audio Files/Smart Tempo Multitrack Set '),
   ).map((audioFilePath) => {
     const name = getLogicAudioFileName(audioFilePath)
-    if (fileNames.has(name)) {
+    if (audioFileNames.has(name)) {
       throw new Error(`found multiple ${name} tracks`)
     }
 
-    fileNames.add(name)
-    return path.join(projectFile, 'Media', audioFilePath)
+    audioFileNames.add(name)
+    return path.join(projectPath, 'Media', audioFilePath)
   })
 
-  if (!files || files.length <= 0) {
-    throw new Error('AudioFiles not found')
+  if (!audioFilePaths || audioFilePaths.length <= 0) {
+    throw new Error('audio files not found')
   }
 
-  const dir = await logAction(
+  const cachePath = await logAction(
     'creating temp directory',
     fs.mkdtemp(path.join(os.tmpdir(), 'export-tracks-')),
   )
 
+  let newAudioFilePaths: string[] = []
   try {
-    await logAction(
+    newAudioFilePaths = await logAction(
       'converting tracks to WAV',
       Promise.all(
-        files.map(async (file) => {
-          const {name} = path.parse(file)
-          const newFilePath = path.join(dir, `${name}.wav`)
-          await $`ffmpeg -y -i ${file} ${newFilePath}`
+        audioFilePaths.map(async (audioFilePath) => {
+          const {name} = path.parse(audioFilePath)
+          const newAudioFilePath = path.join(cachePath, `${name}.wav`)
+          await $`ffmpeg -y -i ${audioFilePath} ${newAudioFilePath}`
+          return newAudioFilePath
         }),
       ),
     )
   } catch (error: unknown) {
-    await logAction(`removing '${dir}'`, fs.rm(dir, {recursive: true}))
+    await logAction(
+      `removing '${cachePath}'`,
+      fs.rm(cachePath, {recursive: true}),
+    )
     throw error
   }
 
-  await exportCache.set(projectFile, dir)
-  return dir
+  return new Project({
+    path: projectPath,
+    cachePath,
+    audioFilePaths: newAudioFilePaths,
+  }).saveToCache()
 }
 
-export async function getOpenLogicDocument(documents: string[]) {
+export async function getOpenLogicProjectPath(projectPaths: string[]) {
   try {
     // lsof returns a 1 exit code (error) in this case
-    await $`lsof -F n +D ${documents} | grep ${logicDocumentExtension}`
+    await $`lsof -F n +D ${projectPaths} | grep ${logicProjectExtension}`
     return
   } catch (error: unknown) {
     if (!(error instanceof ProcessOutput) || error.stderr) {
       return
     }
 
-    const dirPath = error.stdout.split('\n').at(1)
-    if (!dirPath) {
+    const directoryPath = error.stdout.split('\n').at(1)
+    if (!directoryPath) {
       return
     }
 
-    const project = dirPath.slice(
-      dirPath.indexOf('/'),
-      dirPath.lastIndexOf(logicDocumentExtension) +
-        logicDocumentExtension.length,
+    const projectPath = directoryPath.slice(
+      directoryPath.indexOf('/'),
+      directoryPath.lastIndexOf(logicProjectExtension) +
+        logicProjectExtension.length,
     )
 
-    if (path.parse(project).name.startsWith('Untitled')) {
+    if (path.parse(projectPath).name.startsWith('Untitled')) {
       return
     }
 
-    return project
+    return projectPath
   }
 }
 
-export async function* closedLogicDocuments(watchDirPaths: string[]) {
-  let lastOpenDocument: string | undefined
+export async function* closedLogicProjectPaths(watchPaths: string[]) {
+  let lastOpenProjectPath: string | undefined
 
   for (;;) {
-    const openDocument = await getOpenLogicDocument(watchDirPaths)
+    const openProjectPath = await getOpenLogicProjectPath(watchPaths)
 
-    if (lastOpenDocument && openDocument !== lastOpenDocument) {
-      yield lastOpenDocument
+    if (lastOpenProjectPath && openProjectPath !== lastOpenProjectPath) {
+      yield lastOpenProjectPath
     }
 
-    lastOpenDocument = openDocument
+    lastOpenProjectPath = openProjectPath
   }
 }

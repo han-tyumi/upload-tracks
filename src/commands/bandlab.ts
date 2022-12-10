@@ -3,15 +3,15 @@ import {firefox} from 'playwright'
 import {path} from 'zx'
 
 import {
-  closedLogicDocuments,
-  exportDocuments,
-  exportTracksFromLogic,
+  closedLogicProjectPaths,
+  createExportedProjects,
+  createExportedLogicProject,
 } from '../export/index.js'
 import type {LoginParameters} from '../upload/index.js'
 import {uploadToBandLab} from '../upload/index.js'
 import {commandModule} from '../utils.js'
 
-type UploadDocumentsParameters = {
+type UploadProjectsParameters = {
   libraryPath: string | undefined
   head?: boolean | undefined
   slow?: number | undefined
@@ -19,33 +19,36 @@ type UploadDocumentsParameters = {
   persistPage?: Page | true | undefined
 } & LoginParameters
 
-async function uploadDocuments(
-  documents: string[],
-  parameters: UploadDocumentsParameters,
+async function uploadProjects(
+  projectPaths: string[],
+  parameters: UploadProjectsParameters,
 ) {
-  const projects = await exportDocuments(documents, exportTracksFromLogic)
+  const projects = await createExportedProjects(
+    projectPaths,
+    createExportedLogicProject,
+  )
   return uploadToBandLab(projects, {
     browserType: firefox,
     ...parameters,
   })
 }
 
-async function uploadOpenedDocumentsOnClose(
-  watchDirPaths: string[],
-  parameters: UploadDocumentsParameters,
+async function uploadOpenedProjectsOnClose(
+  watchPaths: string[],
+  parameters: UploadProjectsParameters,
 ) {
-  const documentGenerator = closedLogicDocuments(watchDirPaths)
+  const projectPathGenerator = closedLogicProjectPaths(watchPaths)
   let {persistPage} = parameters
 
   for (;;) {
-    console.log(`watching ${watchDirPaths.join(', ')} ...`)
+    console.log(`watching ${watchPaths.join(', ')} ...`)
 
-    const {value: document} = await documentGenerator.next()
-    if (!document) {
+    const {value: projectPath} = await projectPathGenerator.next()
+    if (!projectPath) {
       return
     }
 
-    const page = await uploadDocuments([document], parameters)
+    const page = await uploadProjects([projectPath], parameters)
     if (persistPage && page) {
       persistPage = page
     }
@@ -54,13 +57,13 @@ async function uploadOpenedDocumentsOnClose(
 
 export default commandModule(
   {
-    command: 'bandlab <documents...>',
+    command: 'bandlab <projectPaths...>',
     describe: 'Upload Logic Pro projects to BandLab',
   },
 
   (yargs) =>
     yargs
-      .positional('documents', {
+      .positional('projectPaths', {
         type: 'string',
         array: true,
         demandOption: true,
@@ -99,10 +102,10 @@ export default commandModule(
         },
       }),
 
-  async ({documents, watch, ...parameters}) => {
+  async ({projectPaths, watch, ...parameters}) => {
     if (watch) {
-      await uploadOpenedDocumentsOnClose(
-        documents.map((document) => path.resolve(document)),
+      await uploadOpenedProjectsOnClose(
+        projectPaths.map((projectPath) => path.resolve(projectPath)),
         {
           ...parameters,
           persistPage: true,
@@ -111,6 +114,6 @@ export default commandModule(
       return
     }
 
-    await uploadDocuments(documents, parameters)
+    await uploadProjects(projectPaths, parameters)
   },
 )

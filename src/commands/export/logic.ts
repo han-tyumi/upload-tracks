@@ -1,20 +1,23 @@
-import {exportDocuments, exportTracksFromLogic} from '../../export/index.js'
+import {
+  createExportedProjects,
+  createExportedLogicProject,
+} from '../../export/index.js'
 import {commandModule} from '../../utils.js'
 
 export default commandModule(
   {
-    command: 'logic <documents...>',
-    describe: 'Export all tracks from a Logic Pro document',
+    command: 'logic <projectPaths...>',
+    describe: 'Export all tracks from a Logic Pro project',
   },
 
   (yargs) =>
-    yargs.positional('documents', {
+    yargs.positional('projectPaths', {
       type: 'string',
       array: true,
       demandOption: true,
     }),
 
-  async ({documents}) => {
-    await exportDocuments(documents, exportTracksFromLogic)
+  async ({projectPaths}) => {
+    await createExportedProjects(projectPaths, createExportedLogicProject)
   },
 )

@@ -1,9 +1,8 @@
-import path from 'node:path'
 import process from 'node:process'
 
 import type {Page} from 'playwright'
 import type {CommandModule, ArgumentsCamelCase, CommandBuilder} from 'yargs'
-import {$} from 'zx'
+import {$, path} from 'zx'
 
 export const logAction = async <T>(
   action: string,
@@ -48,28 +47,31 @@ export async function getTrackDuration(filePath: string) {
   return Number.parseFloat(duration)
 }
 
-export type SuffixFunction = (segmentNumber: number) => string
+export type SuffixFunction = (segment: number) => string
 
 export type SplitTrackParameters = {
   maxDuration: number
+  directoryPath?: string
   suffix?: SuffixFunction
 }
 
 export async function splitTrack(
-  filePath: string,
+  audioFilePath: string,
   parameters: SplitTrackParameters,
 ) {
   const {
     maxDuration: maxTrackLength,
+    directoryPath = '',
     suffix = (segmentNumber) => ` Part ${segmentNumber}`,
   } = parameters
 
-  const duration = await getTrackDuration(filePath)
+  const duration = await getTrackDuration(audioFilePath)
   if (duration <= maxTrackLength) {
-    return [filePath]
+    return [audioFilePath]
   }
 
-  const {dir, name, ext} = path.parse(filePath)
+  const {dir, name, ext} = path.parse(audioFilePath)
+  const newDirectoryPath = path.resolve(dir, directoryPath)
   const segments = Math.ceil(duration / maxTrackLength)
   const segmentDuration = duration / segments
 
@@ -78,11 +80,14 @@ export async function splitTrack(
   for (let segment = 1; segment <= segments; segment += 1) {
     const end = start + segmentDuration
     promises.push(
-      (async (segment, start, end) => {
-        const newFilePath = path.join(dir, name + suffix(segment) + ext)
-        await $`ffmpeg -i ${filePath} -acodec copy -ss ${start} -to ${end} ${newFilePath}`
+      (async (start) => {
+        const newFilePath = path.join(
+          newDirectoryPath,
+          name + suffix(segment) + ext,
+        )
+        await $`ffmpeg -i ${audioFilePath} -acodec copy -ss ${start} -to ${end} ${newFilePath}`
         return newFilePath
-      })(segment, start, end),
+      })(start),
     )
     start = end
   }

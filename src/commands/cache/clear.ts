@@ -1,6 +1,6 @@
 import {fs} from 'zx'
 
-import {exportCache} from '../../export/index.js'
+import {projectCache} from '../../project.js'
 import {commandModule, logAction} from '../../utils.js'
 
 export default commandModule(
@@ -14,21 +14,26 @@ export default commandModule(
 
   async () => {
     let hasData = false
-    for await (const [projectFile, exportedTracksDir] of exportCache) {
-      await logAction(
-        `removing '${exportedTracksDir}' for '${projectFile}'`,
-        async () => {
-          await fs.rm(exportedTracksDir, {
+    try {
+      for await (const [, {path, cachePath}] of projectCache) {
+        await logAction(`removing '${cachePath}' for '${path}'`, async () => {
+          await fs.rm(cachePath, {
             recursive: true,
             force: true,
           })
-        },
-      )
-      hasData = true
+        })
+        hasData = true
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error(error.message)
+      } else {
+        console.error(error)
+      }
     }
 
     if (hasData) {
-      await exportCache.clear()
+      await projectCache.clear()
     } else {
       console.log('export cache is empty')
     }

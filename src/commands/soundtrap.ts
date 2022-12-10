@@ -1,18 +1,21 @@
 import {firefox} from 'playwright'
 
-import {exportDocuments, exportTracksFromLogic} from '../export/index.js'
+import {
+  createExportedProjects,
+  createExportedLogicProject,
+} from '../export/index.js'
 import {uploadToSoundtrap} from '../upload/soundtrap.js'
 import {commandModule} from '../utils.js'
 
 export default commandModule(
   {
-    command: 'soundtrap <documents...>',
+    command: 'soundtrap <projectPaths...>',
     describe: 'Upload Logic Pro projects to Soundtrap',
   },
 
   (yargs) =>
     yargs
-      .positional('documents', {
+      .positional('projectPaths', {
         type: 'string',
         array: true,
         demandOption: true,
@@ -38,8 +41,11 @@ export default commandModule(
         },
       }),
 
-  async ({documents, username, password, folder, collaboratorEmails}) => {
-    const projects = await exportDocuments(documents, exportTracksFromLogic)
+  async ({projectPaths, username, password, folder, collaboratorEmails}) => {
+    const projects = await createExportedProjects(
+      projectPaths,
+      createExportedLogicProject,
+    )
     await uploadToSoundtrap(projects, {
       browserType: firefox,
       username,

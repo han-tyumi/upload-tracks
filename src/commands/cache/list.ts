@@ -1,6 +1,6 @@
 import {toArray} from 'modern-async'
 
-import {exportCache} from '../../export/index.js'
+import {projectCache} from '../../project.js'
 import {commandModule} from '../../utils.js'
 
 export default commandModule(
@@ -13,16 +13,16 @@ export default commandModule(
   undefined,
 
   async () => {
-    const entries = await toArray(exportCache)
+    const entries = await toArray(projectCache)
     if (entries.length <= 0) {
       console.log('no project exports cached')
       return
     }
 
     console.table(
-      entries.map(([projectFile, exportedTracksDir]) => ({
-        projectFile,
-        exportedTracksDir,
+      entries.map(([, {path, cachePath}]) => ({
+        path,
+        cachePath,
       })),
     )
   },
