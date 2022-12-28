@@ -4,7 +4,7 @@ import {path} from 'zx'
 
 import {getLogicAudioFileName} from '../export/logic.js'
 import type {Project} from '../project.js'
-import {initiateFileChooser, logAction} from '../utils.js'
+import {logAction} from '../utils.js'
 
 import type {LoginHandler, UploadTracksParameters} from './index.js'
 
@@ -64,8 +64,8 @@ export async function uploadToBandLab(
     }),
   )
 
-  const projectsToUpload = projects.flatMap((project) =>
-    project.splitProjects ? project.splitProjects : [project],
+  const projectsToUpload = projects.flatMap(
+    (project) => project.splitProjects ?? [project],
   )
 
   if (projectsToUpload.length <= 0) {
@@ -117,29 +117,40 @@ export async function uploadToBandLab(
       },
     )
 
-    let fileIndex = 0
-    const totalFiles = audioFilePaths.length
-    for (const file of audioFilePaths) {
-      fileIndex += 1
-      const fileCount = `${projectCount} [${fileIndex}/${totalFiles}]`
+    await logAction(
+      `${projectCount} uploading ${audioFilePaths.length} tracks`,
+      async () => {
+        const fileChooserPromise = page.waitForEvent('filechooser')
+        await page.getByText('Drop a loop or an audio/MIDI file').click()
+        const fileChooser = await fileChooserPromise
+        await fileChooser.setFiles(audioFilePaths)
 
-      const {base} = path.parse(file)
-      const trackName = getLogicAudioFileName(file)
-
-      await logAction(`${fileCount} uploading ${base}`, async () => {
-        await page.getByText('Add Track').click()
-        await page.getByText('Voice/AudioRecord with AutoPitch + Fx').click()
-        await page.getByRole('textbox', {name: 'Voice/Audio'}).fill(trackName)
-        await page.locator('.mix-editor-track-header-settings').last().click()
-        const fileChooser = await initiateFileChooser(
-          page,
-          'text=Import from Disk',
+        await Promise.all(
+          audioFilePaths.map(async (audioFilePath) =>
+            page
+              .getByText(path.basename(audioFilePath), {exact: true})
+              .waitFor({timeout: convert(5).from('min').to('ms')}),
+          ),
         )
-        await fileChooser.setFiles([file])
-        await page
-          .getByText(base, {exact: true})
-          .waitFor({timeout: convert(5).from('min').to('ms')})
-      })
+      },
+    )
+
+    const regions = page.locator('.mix-editor-region-name')
+    const headers = page.locator('.mix-editor-track-header-name-input > input')
+
+    const regionCount = await regions.count()
+    for (let index = 0; index < regionCount; index += 1) {
+      const fileCount = `${projectCount} [${index + 1}/${regionCount}]`
+      const regionTextContent = await regions.nth(index).textContent()
+      const regionName = regionTextContent?.trim() ?? 'Unknown'
+
+      await logAction(
+        `${fileCount} renaming ${regionName}'s track`,
+        async () => {
+          const trackName = getLogicAudioFileName(regionName)
+          await headers.nth(index).fill(trackName)
+        },
+      )
     }
 
     await logAction(`${projectCount} saving ${name}`, async () => {
