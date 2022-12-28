@@ -84,7 +84,6 @@ export default commandModule(
           type: 'string',
         },
         head: {
-          alias: ['h'],
           type: 'boolean',
         },
         slow: {
