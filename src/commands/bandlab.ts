@@ -89,7 +89,7 @@ export default commandModule(
         slow: {
           alias: ['s'],
           type: 'number',
-          default: 500,
+          default: 250,
         },
         pause: {
           alias: ['P'],
