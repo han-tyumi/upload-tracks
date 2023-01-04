@@ -4,13 +4,13 @@ import {path} from 'zx'
 
 import {getLogicAudioFileName} from '../export/logic.js'
 import type {Project} from '../project.js'
-import {logAction} from '../utils.js'
+import {logAction, splitArray} from '../utils.js'
 
 import type {LoginHandler, UploadTracksParameters} from './index.js'
 
 // const maxFileUploadSize = convert(120).from('MB').to('B')
-
 const maxFileDuration = convert(15).from('min').to('s')
+const maxUploadedFiles = 5
 
 // enum FileUploadExtensions {
 //   MP3 = '.mp3',
@@ -117,35 +117,48 @@ export async function uploadToBandLab(
       },
     )
 
-    await logAction(
-      `${projectCount} uploading ${audioFilePaths.length} tracks`,
-      async () => {
-        const fileChooserPromise = page.waitForEvent('filechooser')
-        await page.getByText('Drop a loop or an audio/MIDI file').click()
-        const fileChooser = await fileChooserPromise
-        await fileChooser.setFiles(audioFilePaths)
+    const audioFilePathCount = audioFilePaths.length
+    const groupedAudioFilePaths = splitArray(audioFilePaths, maxUploadedFiles)
+    let filesUploaded = 0
 
-        await Promise.all(
-          audioFilePaths.map(async (audioFilePath) =>
-            page
-              .getByText(path.basename(audioFilePath), {exact: true})
-              .waitFor({timeout: convert(5).from('min').to('ms')}),
-          ),
-        )
-      },
-    )
+    for (const audioFilePaths of groupedAudioFilePaths) {
+      filesUploaded += audioFilePaths.length
+      const uploadCount = `${projectCount} [${filesUploaded}/${audioFilePathCount}]`
+
+      await logAction(
+        `${uploadCount} uploading ${
+          audioFilePaths.length
+        } tracks: \n${audioFilePaths
+          .map((audioFilePath) => ` - ${path.basename(audioFilePath)}`)
+          .join('\n')}\n`,
+        async () => {
+          const fileChooserPromise = page.waitForEvent('filechooser')
+          await page.getByText('Drop a loop or an audio/MIDI file').click()
+          const fileChooser = await fileChooserPromise
+          await fileChooser.setFiles(audioFilePaths)
+
+          await Promise.all(
+            audioFilePaths.map(async (audioFilePath) =>
+              page
+                .getByText(path.basename(audioFilePath), {exact: true})
+                .waitFor({timeout: convert(3).from('min').to('ms')}),
+            ),
+          )
+        },
+      )
+    }
 
     const regions = page.locator('.mix-editor-region-name')
     const headers = page.locator('.mix-editor-track-header-name-input > input')
 
-    const regionCount = await regions.count()
-    for (let index = 0; index < regionCount; index += 1) {
-      const fileCount = `${projectCount} [${index + 1}/${regionCount}]`
-      const regionTextContent = await regions.nth(index).textContent()
+    const allRegions = await regions.all()
+    for (const [index, region] of allRegions.entries()) {
+      const renameCount = `${projectCount} [${index + 1}/${allRegions.length}]`
+      const regionTextContent = await region.textContent()
       const regionName = regionTextContent?.trim() ?? 'Unknown'
 
       await logAction(
-        `${fileCount} renaming ${regionName}'s track`,
+        `${renameCount} renaming ${regionName}'s track`,
         async () => {
           const trackName = getLogicAudioFileName(regionName)
           await headers.nth(index).fill(trackName)

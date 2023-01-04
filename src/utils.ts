@@ -94,3 +94,13 @@ export async function splitTrack(
 
   return Promise.all(promises)
 }
+
+export const splitArray = <T>(array: T[], amount: number) => {
+  const output = []
+
+  for (let i = 0; i < array.length; i += amount) {
+    output.push(array.slice(i, i + amount))
+  }
+
+  return output
+}
