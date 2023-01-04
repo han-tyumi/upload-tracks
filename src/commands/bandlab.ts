@@ -101,18 +101,20 @@ export default commandModule(
         },
       }),
 
-  async ({projectPaths, watch, ...parameters}) => {
+  async ({projectPaths, watch, pause, head = pause, ...parameters}) => {
+    const finalParameters = {pause, head, ...parameters}
+
     if (watch) {
       await uploadOpenedProjectsOnClose(
         projectPaths.map((projectPath) => path.resolve(projectPath)),
         {
-          ...parameters,
+          ...finalParameters,
           persistPage: true,
         },
       )
       return
     }
 
-    await uploadProjects(projectPaths, parameters)
+    await uploadProjects(projectPaths, finalParameters)
   },
 )
