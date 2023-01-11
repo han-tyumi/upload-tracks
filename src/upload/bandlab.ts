@@ -41,6 +41,14 @@ export type BandLabUploadParameters = {
   persistPage?: Page | true | undefined
 } & UploadTracksParameters
 
+async function closeModals(page: Page) {
+  try {
+    for (;;) {
+      await page.locator('.modal-close').first().click({timeout: 2000})
+    }
+  } catch {}
+}
+
 export async function uploadToBandLab(
   projects: Project[],
   {
@@ -112,8 +120,12 @@ export async function uploadToBandLab(
       `${projectCount} creating new project for ${name}`,
       async () => {
         await page.goto(libraryUrl)
-        await page.locator('a:has-text("New")').click()
-        await page.locator('.modal-close').click()
+        await page.getByText('New').click()
+        await page.waitForNavigation({
+          url: /\/studio/,
+          waitUntil: 'networkidle',
+        })
+        await closeModals(page)
       },
     )
 
