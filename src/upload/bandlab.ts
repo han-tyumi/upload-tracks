@@ -146,7 +146,9 @@ export async function uploadToBandLab(
         async () => {
           const fileChooserPromise = page.waitForEvent('filechooser')
           await page
-            .getByText('Drop a loop or an audio/MIDI/video file')
+            .locator('div')
+            .filter({hasText: 'Drop a loop or an audio/MIDI/video file'})
+            .nth(4)
             .click()
           const fileChooser = await fileChooserPromise
           await fileChooser.setFiles(audioFilePaths)
