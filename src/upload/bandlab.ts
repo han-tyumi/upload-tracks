@@ -106,7 +106,7 @@ export async function uploadToBandLab(
     await logAction('logging in', async () => {
       await page.goto(libraryUrl)
       await login(page, loginParameters)
-      await page.waitForNavigation({url: libraryUrl})
+      await page.waitForURL(libraryUrl)
     })
   }
 
@@ -121,10 +121,7 @@ export async function uploadToBandLab(
       async () => {
         await page.goto(libraryUrl)
         await page.getByText('New').click()
-        await page.waitForNavigation({
-          url: /\/studio/,
-          waitUntil: 'networkidle',
-        })
+        await page.waitForURL(/\/studio/, {waitUntil: 'networkidle'})
         await closeModals(page)
       },
     )
