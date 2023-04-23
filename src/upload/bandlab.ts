@@ -120,7 +120,7 @@ export async function uploadToBandLab(
       `${projectCount} creating new project for ${name}`,
       async () => {
         await page.goto(libraryUrl)
-        await page.getByText('New').click()
+        await page.getByRole('link', {name: 'New'}).click()
         await page.waitForURL(/\/studio/, {waitUntil: 'networkidle'})
         await closeModals(page)
       },
@@ -153,10 +153,18 @@ export async function uploadToBandLab(
           await Promise.all(
             audioFilePaths.map(async (audioFilePath) =>
               page
-                .getByText(path.basename(audioFilePath), {exact: true})
+                .locator('.mix-editor-track')
+                .filter({
+                  has: page.getByText(path.basename(audioFilePath), {
+                    exact: true,
+                  }),
+                })
+                .locator('canvas')
                 .waitFor({timeout: convert(5).from('min').to('ms')}),
             ),
           )
+
+          await page.mouse.wheel(0, page.viewportSize()?.height ?? 0)
         },
       )
     }
