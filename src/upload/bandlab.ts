@@ -142,11 +142,14 @@ export async function uploadToBandLab(
           .join('\n')}\n`,
         async () => {
           const fileChooserPromise = page.waitForEvent('filechooser')
-          await page
+
+          const uploadButton = page
             .locator('div')
             .filter({hasText: 'Drop a loop or an audio/MIDI/video file'})
             .nth(4)
-            .click()
+          await uploadButton.scrollIntoViewIfNeeded()
+          await uploadButton.click()
+
           const fileChooser = await fileChooserPromise
           await fileChooser.setFiles(audioFilePaths)
 
@@ -191,7 +194,7 @@ export async function uploadToBandLab(
       await page.locator('[placeholder="New Project"]').fill(name)
       await page.locator('button:has-text("Save")').click()
       await page
-        .locator('text=Project saved')
+        .getByText('Last Saved Just now')
         .waitFor({timeout: convert(5).from('min').to('ms')})
     })
   }
