@@ -172,20 +172,19 @@ export async function uploadToBandLab(
       )
     }
 
-    const regions = page.locator('.mix-editor-region-name')
-    const headers = page.locator('.mix-editor-track-header-name-input > input')
+    const headers = page.locator('.mix-editor-track-header-name > input')
 
-    const allRegions = await regions.all()
-    for (const [index, region] of allRegions.entries()) {
-      const renameCount = `${projectCount} [${index + 1}/${allRegions.length}]`
-      const regionTextContent = await region.textContent()
-      const regionName = regionTextContent?.trim() ?? 'Unknown'
+    const allHeaders = await headers.all()
+    for (const [index, header] of allHeaders.entries()) {
+      const renameCount = `${projectCount} [${index + 1}/${allHeaders.length}]`
+      const headerTextContent = await header.inputValue()
+      const headerName = headerTextContent?.trim() ?? 'Unknown'
 
       await logAction(
-        `${renameCount} renaming ${regionName}'s track`,
+        `${renameCount} renaming ${headerName}'s track`,
         async () => {
-          const trackName = getLogicAudioFileName(regionName)
-          await headers.nth(index).fill(trackName)
+          const trackName = getLogicAudioFileName(headerName)
+          await header.fill(trackName)
         },
       )
     }
